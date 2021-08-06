@@ -45,6 +45,7 @@ def data_process(dataset: Dataset,
     flatten_images = all_images.reshape(len(all_images), -1)
     return flatten_images, all_labels
 
+
 def main(args):
     # Setting up logging tools
     exp_dir = os.path.join(os.getcwd(), 'exps', args.exp_name)
@@ -85,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_cluster', type=int, default=10,
                         help='Max number of clusters')
     parser.add_argument('--feature_extractor', type=str, default=None,
-                        help='Feature extractor')
+                        help='Name of Feature extractor')
     args = parser.parse_args()
 
     main(args)

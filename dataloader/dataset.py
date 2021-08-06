@@ -1,30 +1,22 @@
 import os
 import glob
 import cv2
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np 
 from PIL import Image
+
+from utils.utils import load_class_name
 
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 
-CLASS_NAMES = [
-    'butterfly',
-    'lion',
-    'cat',
-    'dog',
-    'forest',
-    'monkey',
-    'rose',
-    'sunflower'
-]
-
 
 class DeepClusteringDataset(Dataset):
     def __init__(self,
                 data_dir: str,
+                class_names_path: str = 'dataloader/classes.yml',
                 transform = None,
                 image_size: Tuple[int, int] = (224, 224),
                 is_train: bool = False):
@@ -44,7 +36,7 @@ class DeepClusteringDataset(Dataset):
             self.all_samples = glob.glob(os.path.join(data_dir, '*'))
         else:
             self.all_samples = glob.glob(os.path.join(data_dir, '*/*'))
-            self.class_names = CLASS_NAMES
+            self.class_names = load_class_name(class_names_path)
         self.num_samples = len(self.all_samples)
         print('Loaded {} samples'.format(self.num_samples))
 
@@ -59,6 +51,7 @@ class DeepClusteringDataset(Dataset):
         X = self.transform(image)
         if not self.is_train:
             image_label = sample.split('/')[-2]
+            import ipdb; ipdb.set_trace()
             Y = self.class_names.index(image_label)
             return X, Y
         return X
