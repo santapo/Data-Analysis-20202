@@ -60,5 +60,5 @@ optional arguments:
   --max_cluster MAX_CLUSTER
                         Max number of clusters
   --feature_extractor FEATURE_EXTRACTOR
-                        Name of Feature extractor
+                        Name of Feature extractor. Remeber to comment GrayScale transform in dataset
 ```

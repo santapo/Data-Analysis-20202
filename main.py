@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_cluster', type=int, default=10,
                         help='Max number of clusters')
     parser.add_argument('--feature_extractor', type=str, default=None,
-                        help='Name of Feature extractor')
+                        help='Name of Feature extractor. Remeber to comment GrayScale transform in dataset')
     args = parser.parse_args()
 
     main(args)
