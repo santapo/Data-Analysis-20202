@@ -1,17 +1,19 @@
 import os
 import argparse
 import logging
+from torchvision.datasets import cifar
 from tqdm import tqdm
 import numpy as np
 
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-from extractor import get_model
+from extractor import get_extractor
 
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
-from dataloader.dataset import DeepClusteringDataset
+
+from data import get_datamodule
 
 from utils.log import plot_confusion_matrix
 from utils.cluster_utils import get_class, get_cluster_class, kmeans_clustering
@@ -30,19 +32,19 @@ def data_process(dataset: Dataset,
     for idx in tqdm(range(len(dataset))):
         image, label = dataset[idx]
         if model is not None:
-            pseudo_batching = torch.unsqueeze(image, 0) 
-            feat = model(pseudo_batching).flatten().numpy()
+            with torch.no_grad():
+                pseudo_batching = torch.unsqueeze(image, 0) 
+                feat = model(pseudo_batching).flatten().numpy()
         else:
             feat = image.numpy()
         # make sure that feature vector is a numpy array
         all_feats.append(feat)
         all_labels.append(label)
     
-    all_images = np.array(all_feats)
+    all_feats = np.array(all_feats)
     all_labels = np.array(all_labels)
     # flatten image shape
-    import ipdb; ipdb.set_trace()
-    flatten_images = all_images.reshape(len(all_images), -1)
+    flatten_images = all_feats.reshape(len(all_feats), -1)
     return flatten_images, all_labels
 
 
@@ -53,11 +55,17 @@ def main(args):
     
     # TODO: Load data samples through DataLoader to take advance of Batching
     # Setting up Model
-    model = get_model(args.feature_extractor)
+    model = get_extractor(model_name = args.feature_extractor, checkpoint=args.ckpt)
+    model.eval()
+
     # Setting up Dataloader
-    dataset = DeepClusteringDataset(data_dir=args.data_path, image_size=(32,32), is_train=False)
+    cifar10_dm = get_datamodule()
+    cifar10_dm.setup('test')
+    dataset = cifar10_dm.test_dataloader().dataset
+    
     flatten_images, all_labels = data_process(dataset, model)
-    class_name = dataset.class_names
+    class_name = ['plane', 'car', 'bird', 'car', 'deer',
+                'dog', 'frog', 'horse', 'ship', 'truck']
 
     # Run KMeans
     for n in range(args.min_cluster, args.max_cluster + 1):
@@ -87,6 +95,8 @@ if __name__ == '__main__':
                         help='Max number of clusters')
     parser.add_argument('--feature_extractor', type=str, default=None,
                         help='Name of Feature extractor. Remeber to comment GrayScale transform in dataset')
+    parser.add_argument('--ckpt', type=str, default=None,
+                        help='Path to ckeckpoint. Only supported with vgg16_bn.')
     args = parser.parse_args()
 
     main(args)
