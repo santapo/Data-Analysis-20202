@@ -26,7 +26,7 @@ def main(args):
     flatten_images = codes[:, :-1]
     all_labels = codes[:, -1].astype('int8')
 
-    class_names = ['plane', 'car', 'bird', 'car', 'deer',
+    class_names = ['plane', 'car', 'bird', 'cat', 'deer',
                 'dog', 'frog', 'horse', 'ship', 'truck']
 
     # Run KMeans
@@ -40,10 +40,9 @@ def main(args):
         cm = confusion_matrix(all_labels, predicted)
         cm_fig = plot_confusion_matrix(cm, class_names)
 
-        fig_list = plot_nearest_samples(images, clusters, distances, ref_classes, class_names)
-        
-        import ipdb
-        writer.add_figure(tag='test', figure=fig_list, global_step=n)
+        if n in range(0,13):
+            fig_list = plot_nearest_samples(images, clusters, distances, ref_classes, class_names)
+            writer.add_figure(tag='test', figure=fig_list, global_step=n)
         # for i in range(len(fig_list)):
         #     writer.add_figure(tag=f'Cluster {i}', figure=fig_list[i], global_step=n)
         

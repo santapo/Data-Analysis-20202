@@ -15,6 +15,7 @@ class Encoder(nn.Module):
         vgg = models.vgg16_bn(pretrained=pretrained)
         del vgg.classifier
         del vgg.avgpool
+        del vgg.features[43]
 
         self.encoder = self._encodify_(vgg)
 
@@ -112,24 +113,9 @@ class AutoEncoder(nn.Module):
     channels_code = Encoder.channels_code
     channels_out = Decoder.channels_out
 
-    def __init__(self, pretrained=True):
+    def __init__(self, pretrained=True, merger_type=None):
         super(AutoEncoder, self).__init__()
-        self.encoder = Encoder(pretrained=pretrained)
-        self.decoder = Decoder(self.encoder.encoder)
 
-    def forward(self, x):
-        code, pool_indices = self.encoder(x)
-        x_prime = self.decoder(code, pool_indices)
-
-        return x_prime
-
-class EncoderMerged(Encoder):
-    def __init__(
-        self,
-        merger_type=None,
-        pretrained=True
-    ):
-        super(EncoderMerged, self).__init__(pretrained=pretrained)
         if merger_type is None:
             self.code_post_process = lambda x: x
             self.code_post_process_kwargs = {}
@@ -141,9 +127,22 @@ class EncoderMerged(Encoder):
             self.code_post_process_kwargs = {'start_dim': 1, 'end_dim': -1}
         else:
             raise ValueError('Unknown merger type for the encoder code: {}'. format(merger_type))
+        
+        self.encoder = Encoder(pretrained=pretrained)
+        self.decoder = Decoder(self.encoder.encoder)
 
-    def forward(self, x):
-        x_current, _ = super().forward(x)
-        x_code = self.code_post_process(x_current, **self.code_post_process_kwargs)
+    def forward(self, x, only_encoder):
+        code, pool_indices = self.encoder(x)
+        if only_encoder:
+            return code 
+        x_prime = self.decoder(code, pool_indices)
 
-        return x_code        
+        return x_prime
+
+if __name__ == "__main__":
+    import torch
+    inp = torch.rand(1,3,32,32)
+    model = AutoEncoder(merger_type='mean')
+    res = model(inp, only_encoder=False)
+    print(res.shape)
+    print(model)

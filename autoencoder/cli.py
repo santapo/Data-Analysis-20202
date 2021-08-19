@@ -19,7 +19,7 @@ class AutoEncoderTrainingCLI(LightningCLI):
         lr_monitor = LearningRateMonitor(logging_interval="step")
         save_checkpoint = ModelCheckpoint(dirpath=None,
                                           filename='{epoch}-{step}-{val_loss:.2f}',
-                                          save_top_k=-1)
+                                          save_top_k=10, monitor='val_loss')
         self.config_init['trainer']['callbacks'] = [lr_monitor, save_checkpoint]
 
     def instantiate_trainer(self):
@@ -34,13 +34,15 @@ class AutoEncoderTrainingCLI(LightningCLI):
         super().instantiate_model()
 
     def after_fit(self):
+        self.datamodule.setup('test')
+        self.trainer.test(model=self.model, dataloaders=self.datamodule.test_dataloader())
         if self.config['pickle_embedd']:
-            self.datamodule.setup('test')
             pickling_dataset(self.datamodule.dataset_test)
             
             res = self.trainer.predict(model=self.model, dataloaders=self.datamodule.test_dataloader())
             concat_res = np.concatenate(res, axis=0)
             np.save('../clustering/data/codes.npy', concat_res)
+            print(concat_res.shape)
 
 def cli_main():
     AutoEncoderTrainingCLI(AutoEncoderModel, CIFAR10Data,

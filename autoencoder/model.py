@@ -110,7 +110,17 @@ class AutoEncoderModel(pl.LightningModule):
         out = self.forward(image, only_encoder=False)
         loss = self.criterion(out, image)
         self.log('val_loss', loss, prog_bar=True)
-
+    
+    
+    def test_step(self, batch, batch_idx):
+        """
+        Test step for each batch of a test iteration.
+        """
+        image, _ = batch
+        out = self.forward(image, only_encoder=False)
+        loss = self.criterion(out, image)
+        self.log('test_loss', loss, prog_bar=True)
+    
     def on_predict_start(self):
         return super().on_predict_start()
 
@@ -120,7 +130,6 @@ class AutoEncoderModel(pl.LightningModule):
         """
         image, label = batch
         codes = self.forward(image, only_encoder=True)
-
         # batch_size x 128 x 3 x 3
         np_codes = codes.cpu().detach().numpy().reshape(image.shape[0], -1)
         np_label = label.cpu().detach().numpy().reshape(image.shape[0], -1)

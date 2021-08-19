@@ -48,23 +48,27 @@ def plot_nearest_samples(images, clusters, distances, ref_classes, class_names):
     fig_list = []
     for i in range(len(np.unique(clusters))):
         cluster_idx = np.where(clusters == i,1,0)
-        topk_distances_idx = distances[cluster_idx==1].argsort()[:100]
+        topk_distances_idx = distances[cluster_idx==1].argsort()[:25]
         topk_images = images[topk_distances_idx, :, :, :]
-        
+
+        print(f'number of samples in cluster {i}: {np.count_nonzero(cluster_idx == 1)}')        
         mainly_cluster_name = class_names[ref_classes[i]]
 
-        fig, axs = plt.subplots(10, 10)
+        fig, axs = plt.subplots(5, 5)
         fig.suptitle(f'Cluster {i}: Mainly {mainly_cluster_name}', weight='bold', size=14)
         counter = 0
-        for j in range(10):
-            for k in range(10):
-                axs[j][k].tick_params(axis='x', labelsize=12)
-                axs[j][k].tick_params(axis='y', labelsize=12)
-                axs[j][k].axis('off')
-                axs[j][k].imshow(topk_images[counter])
-                counter += 1
-
-        fig_list.append(fig)
+        try:
+            for j in range(5):
+                for k in range(5):
+                    axs[j][k].tick_params(axis='x', labelsize=12)
+                    axs[j][k].tick_params(axis='y', labelsize=12)
+                    axs[j][k].axis('off')
+                    axs[j][k].imshow(topk_images[counter])
+                    counter += 1
+            fig_list.append(fig)
+        except Exception as e:
+            print(e)
+            continue        
 
     return fig_list
 
