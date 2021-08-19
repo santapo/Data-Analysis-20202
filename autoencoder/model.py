@@ -1,42 +1,64 @@
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+import numpy as np
 
 from torch import optim
 import torch.nn as nn
 
-from extractor import get_autoencoder
-from data import get_datamodule
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+
+from backbone import get_autoencoder
 
 
 class AutoEncoderModel(pl.LightningModule):
     def __init__(self,
-                optimizer_name: str = "adam",
+                model_name: str = 'dummy',
+                optimizer_name: str = 'adam',
                 lr_scheduler_method_name: str = 'none',
                 lr: float = 0.001,
                 momentum: float = 0.9,
                 weight_decay: float = 5e-4,
                 pretrained: bool = True,
-                freeze_encoder: bool = False):
+                freeze_encoder: bool = False,
+                checkpoint: str = None,
+                train_loader_total_samples: int = 10000):
         """AutoEncoderModel
         Args:
         
         """
         super().__init__()
+
+        self.model_name = model_name
+        self.pretrained = pretrained
+        self.checkpoint = checkpoint
         self.lr = lr
         self.momentum = momentum
         self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
         self.lr_scheduler_method_name = lr_scheduler_method_name
-        self.train_loader_total_samples = 197
+        self.train_loader_total_samples = train_loader_total_samples
         self.inp_freeze_encoder = freeze_encoder
-        self.model = get_autoencoder(model_name='vgg16_bn', pretrained=pretrained)
+        
+        self._build_model()
         self.criterion = nn.MSELoss()
 
-    def forward(self, x):
+    def _build_model(self):
+        """
+        Construct the model
+        """
+        self.model = get_autoencoder(model_name=self.model_name, pretrained=self.pretrained)
+        if self.checkpoint is not None:
+            try:
+                self.load_from_checkpoint(self.checkpoint)
+            except:
+                print("Can't Load Checkpoint")
+            else:
+                print(f"Loaded checkpoint from {self.checkpoint}")
+
+    def forward(self, x, only_encoder):
         """
         Model Forward Path
         """
-        return self.model(x)
+        return self.model(x, only_encoder)
     
     def configure_optimizers(self):
         """
@@ -75,9 +97,9 @@ class AutoEncoderModel(pl.LightningModule):
         Training step for each batch of an training iteration.
         """
         image, _ = batch
-        out = self.forward(image)
+        out = self.forward(image, only_encoder=False)
         loss = self.criterion(out, image)
-        self.log('train_loss', loss, on_step=True)
+        self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -85,38 +107,25 @@ class AutoEncoderModel(pl.LightningModule):
         Validation step for each batch of a validation iteration.
         """
         image, _ = batch
-        out = self.forward(image)
+        out = self.forward(image, only_encoder=False)
         loss = self.criterion(out, image)
-        self.log('val_loss', loss, on_step=True)
+        self.log('val_loss', loss, prog_bar=True)
 
+    def on_predict_start(self):
+        return super().on_predict_start()
 
-if __name__ == "__main__":
+    def predict_step(self, batch, batch_idx):
+        """
+        Predict step for each batch of a predict iteration.
+        """
+        image, label = batch
+        codes = self.forward(image, only_encoder=True)
 
-    cifar10_dm = get_datamodule(
-        batch_size=256,
-        num_workers=2
-    )
-    model = AutoEncoderModel(
-        pretrained=True,
-        optimizer_name='sgd',
-        lr_scheduler_method_name='cosine',
-        lr=0.005
-    )
-    model.datamodule = cifar10_dm
-    model.load_from_checkpoint('exps/vgg16_sgd_256_cosine/lightning_logs/version_1/checkpoints/epoch=99-step=15699-val_loss=0.07.ckpt')
-    save_checkpoint = ModelCheckpoint(dirpath=None,
-                                    filename='{epoch}-{step}-{val_loss:.2f}',
-                                    save_top_k=-1)
-    lr_monitor = LearningRateMonitor(logging_interval="step")
-    
-    trainer = pl.Trainer(
-        default_root_dir='exps/vgg16_sgd_256_cosine',
-        gpus=1,
-        max_epochs=100,
-        callbacks=[save_checkpoint, lr_monitor],
-    )
-    
-    trainer.fit(model, cifar10_dm)
+        # batch_size x 128 x 3 x 3
+        np_codes = codes.cpu().detach().numpy().reshape(image.shape[0], -1)
+        np_label = label.cpu().detach().numpy().reshape(image.shape[0], -1)
+        res = np.hstack((np_codes, np_label))
+        return res
 
     
 
